@@ -1,0 +1,38 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Smart Heating Advisor einrichten",
+        "description": "Waehle die Sensoren aus, die fuer die Heizungsempfehlung beruecksichtigt werden sollen.",
+        "data": {
+          "outdoor_temp_sensor": "Aussentemperatursensor",
+          "indoor_temp_sensors": "Innentemperatursensoren (mehrere moeglich)",
+          "weather_entity": "Wetter-Entity (fuer Forecast)",
+          "window_sensors": "Fenstersensoren (optional)",
+          "heating_threshold": "Heizschwelle Aussentemperatur",
+          "min_indoor_temp": "Mindest-Innentemperatur",
+          "summer_mode_days": "Sommermodus: Anzahl warmer Tage"
+        }
+      }
+    },
+    "error": {
+      "sensor_not_found": "Sensor nicht gefunden oder nicht verfuegbar."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Smart Heating Advisor Einstellungen",
+        "data": {
+          "outdoor_temp_sensor": "Aussentemperatursensor",
+          "indoor_temp_sensors": "Innentemperatursensoren",
+          "weather_entity": "Wetter-Entity",
+          "window_sensors": "Fenstersensoren",
+          "heating_threshold": "Heizschwelle Aussentemperatur",
+          "min_indoor_temp": "Mindest-Innentemperatur",
+          "summer_mode_days": "Sommermodus: Anzahl warmer Tage"
+        }
+      }
+    }
+  }
+}
