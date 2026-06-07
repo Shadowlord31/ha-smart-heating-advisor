@@ -50,8 +50,12 @@ class HeatingRecommendedBinarySensor(_BaseBinarySensor):
             coordinator, entry,
             key="recommend_heating",
             name="Heizen empfohlen",
-            device_class=BinarySensorDeviceClass.HEAT,
+            device_class=None,
         )
+
+    @property
+    def icon(self):
+        return "mdi:radiator" if self.is_on else "mdi:radiator-off" 
 
     @property
     def extra_state_attributes(self):
