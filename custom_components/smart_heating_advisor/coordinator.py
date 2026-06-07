@@ -189,8 +189,8 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         Sommermodus aktiv wenn die naechsten N Tage alle ueber
         heating_threshold liegen (Tag-Max UND Nacht-Min).
         """
-        threshold = self._config.get(CONF_HEATING_THRESHOLD, DEFAULT_HEATING_THRESHOLD)
-        days_needed = self._config.get(CONF_SUMMER_MODE_DAYS, DEFAULT_SUMMER_MODE_DAYS)
+        threshold = float(self._config.get(CONF_HEATING_THRESHOLD, DEFAULT_HEATING_THRESHOLD))
+        days_needed = int(self._config.get(CONF_SUMMER_MODE_DAYS, DEFAULT_SUMMER_MODE_DAYS))
 
         if len(forecast) < days_needed:
             return False
@@ -224,8 +224,8 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
           target_temp: float|None  - Empfohlene Zieltemperatur
           confidence: int          - 0-100
         """
-        threshold = self._config.get(CONF_HEATING_THRESHOLD, DEFAULT_HEATING_THRESHOLD)
-        min_indoor_threshold = self._config.get(CONF_MIN_INDOOR_TEMP, DEFAULT_MIN_INDOOR_TEMP)
+        threshold = float(self._config.get(CONF_HEATING_THRESHOLD, DEFAULT_HEATING_THRESHOLD))
+        min_indoor_threshold = float(self._config.get(CONF_MIN_INDOOR_TEMP, DEFAULT_MIN_INDOOR_TEMP))
 
         # Fenster offen -> kein Heizen
         if any_window_open:
