@@ -1,11 +1,13 @@
 {
   "domain": "smart_heating_advisor",
   "name": "Smart Heating Advisor",
-  "version": "0.1.0",
+  "version": "0.1.7",
   "documentation": "https://github.com/Shadowlord31/ha-smart-heating-advisor",
   "issue_tracker": "https://github.com/Shadowlord31/ha-smart-heating-advisor/issues",
   "dependencies": [],
-  "codeowners": ["@Shadowlord31"],
+  "codeowners": [
+    "@Shadowlord31"
+  ],
   "requirements": [],
   "iot_class": "local_polling",
   "config_flow": true
