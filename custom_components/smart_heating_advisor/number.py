@@ -91,15 +91,15 @@ async def async_setup_entry(
         ),
     ]
 
-    # Startwerte aus Config laden falls vorhanden
-    config = {**entry.data, **entry.options}
+    # Startwerte aus persistierten options laden (Vorrang) dann config dann Default
+    opts = entry.options
     number_store = hass.data[DOMAIN].setdefault(f"{entry.entry_id}_numbers", {})
 
-    number_store.setdefault(NUMBER_HEATING_THRESHOLD, float(config.get("heating_threshold", DEFAULT_HEATING_THRESHOLD)))
-    number_store.setdefault(NUMBER_MIN_INDOOR_TEMP, float(config.get("min_indoor_temp", DEFAULT_MIN_INDOOR_TEMP)))
-    number_store.setdefault(NUMBER_SUMMER_DAY_MAX, float(config.get("summer_day_max", DEFAULT_SUMMER_DAY_MAX)))
-    number_store.setdefault(NUMBER_SUMMER_MIN_INDOOR, float(config.get("summer_min_indoor", DEFAULT_SUMMER_MIN_INDOOR)))
-    number_store.setdefault(NUMBER_SUMMER_MODE_DAYS, float(config.get("summer_mode_days", DEFAULT_SUMMER_MODE_DAYS)))
+    number_store[NUMBER_HEATING_THRESHOLD] = float(opts.get(NUMBER_HEATING_THRESHOLD, DEFAULT_HEATING_THRESHOLD))
+    number_store[NUMBER_MIN_INDOOR_TEMP] = float(opts.get(NUMBER_MIN_INDOOR_TEMP, DEFAULT_MIN_INDOOR_TEMP))
+    number_store[NUMBER_SUMMER_DAY_MAX] = float(opts.get(NUMBER_SUMMER_DAY_MAX, DEFAULT_SUMMER_DAY_MAX))
+    number_store[NUMBER_SUMMER_MIN_INDOOR] = float(opts.get(NUMBER_SUMMER_MIN_INDOOR, DEFAULT_SUMMER_MIN_INDOOR))
+    number_store[NUMBER_SUMMER_MODE_DAYS] = float(opts.get(NUMBER_SUMMER_MODE_DAYS, DEFAULT_SUMMER_MODE_DAYS))
 
     async_add_entities(entities)
 
@@ -130,8 +130,14 @@ class SHANumberEntity(CoordinatorEntity, NumberEntity):
         return self._store.get(self._key, self._default)
 
     async def async_set_native_value(self, value: float) -> None:
-        """Wert setzen und Coordinator neu laden."""
+        """Wert setzen, persistieren und Coordinator neu laden."""
         self._store[self._key] = value
+
+        # In entry.options persistieren damit Werte nach Neustart erhalten bleiben
+        new_options = dict(self._entry.options)
+        new_options[self._key] = value
+        self.hass.config_entries.async_update_entry(self._entry, options=new_options)
+
         await self.coordinator.async_request_refresh()
         self.async_write_ha_state()
 
