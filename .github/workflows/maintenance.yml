@@ -1,0 +1,54 @@
+name: Monthly Maintenance
+
+on:
+  schedule:
+    - cron: "0 10 1 * *"
+  workflow_dispatch:
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get latest HA version
+        id: ha_version
+        run: |
+          HA_VERSION=$(curl -s https://api.github.com/repos/home-assistant/core/releases/latest | jq -r .tag_name)
+          echo "version=$HA_VERSION" >> $GITHUB_OUTPUT
+          echo "Latest HA version: $HA_VERSION"
+
+      - name: Get current integration version
+        id: int_version
+        run: |
+          VERSION=$(jq -r .version custom_components/smart_heating_advisor/manifest.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current integration version: $VERSION"
+
+      - name: Update manifest.json with latest HA version
+        run: |
+          jq --arg ha "${{ steps.ha_version.outputs.version }}"             '.homeassistant = $ha'             custom_components/smart_heating_advisor/manifest.json > /tmp/manifest.json
+          mv /tmp/manifest.json custom_components/smart_heating_advisor/manifest.json
+          echo "Updated homeassistant field to ${{ steps.ha_version.outputs.version }}"
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git diff --quiet && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add custom_components/smart_heating_advisor/manifest.json
+          git commit -m "chore: update minimum HA version to ${{ steps.ha_version.outputs.version }}"
+          git push
+
+      - name: No changes needed
+        if: steps.changes.outputs.changed == 'false'
+        run: echo "manifest.json already up to date, no commit needed"
