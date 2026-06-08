@@ -332,13 +332,14 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         any_window_open: bool,
     ) -> dict:
         threshold = self._num(NUMBER_HEATING_THRESHOLD, DEFAULT_HEATING_THRESHOLD)
+
         min_indoor_threshold = self._num(NUMBER_MIN_INDOOR_TEMP, DEFAULT_MIN_INDOOR_TEMP)
 
         if any_window_open:
-            return {"recommend": False, "reason": "Fenster geoeffnet", "target_temp": None, "confidence": 95}
+            return {"recommend": False, "reason": "Fenster geoeffnet", "target_temp": min_indoor_threshold, "confidence": 95}
 
         if summer_mode:
-            return {"recommend": False, "reason": "Sommermodus aktiv", "target_temp": None, "confidence": 90}
+            return {"recommend": False, "reason": "Sommermodus aktiv", "target_temp": min_indoor_threshold, "confidence": 90}
 
         if min_indoor is not None and min_indoor < min_indoor_threshold:
             delta = min_indoor_threshold - min_indoor

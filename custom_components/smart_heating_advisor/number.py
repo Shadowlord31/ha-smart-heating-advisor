@@ -118,7 +118,7 @@ class SHANumberEntity(CoordinatorEntity, NumberEntity):
         self._attr_native_max_value = max_value
         self._attr_native_step = step
         self._attr_native_unit_of_measurement = unit
-        self._attr_mode = NumberMode.SLIDER
+        self._attr_mode = NumberMode.BOX
         self._default = default
 
     @property
