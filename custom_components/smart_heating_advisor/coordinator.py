@@ -400,7 +400,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
             any_window_open = self._any_window_open()
 
             # Gebaeude-Trend berechnen
-            building = await self._calc_building_trend(avg_indoor)
+            building = await self._calc_building_trend(avg_indoor or 20.0, outdoor_temp)
 
             # Heizrelevante Außentemperatur
             heating_result = self._calc_heating_relevant_temp(
@@ -435,6 +435,8 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
                 "indoor_trend_per_hour": building["trend_per_hour"],
                 "indoor_trend_available": building["available"],
                 "building_correction": building["correction"],
+                "ventilation_cooling": building["ventilation_cooling"],
+                "corrected_trend": building["corrected_trend"],
                 "components": components,
                 "updated_at": dt_util.now().isoformat(),
                 "active_indoor_sensors": self._resolve_indoor_sensors(),
