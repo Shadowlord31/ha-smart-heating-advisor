@@ -1,4 +1,4 @@
-"""Config Flow für Smart Heating Advisor."""
+"""Config Flow fuer Smart Heating Advisor."""
 from __future__ import annotations
 
 import voluptuous as vol
@@ -28,7 +28,9 @@ def _build_schema(defaults: dict) -> vol.Schema:
         vol.Optional(
             CONF_INDOOR_TEMP_LABEL,
             default=defaults.get(CONF_INDOOR_TEMP_LABEL, "")
-        ): selector.LabelSelector(),
+        ): selector.TextSelector(
+            selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
+        ),
         vol.Optional(
             CONF_INDOOR_TEMPS,
             default=defaults.get(CONF_INDOOR_TEMPS, [])
@@ -42,7 +44,9 @@ def _build_schema(defaults: dict) -> vol.Schema:
         vol.Optional(
             CONF_WINDOW_LABEL,
             default=defaults.get(CONF_WINDOW_LABEL, "")
-        ): selector.LabelSelector(),
+        ): selector.TextSelector(
+            selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
+        ),
         vol.Optional(
             CONF_WINDOW_SENSORS,
             default=defaults.get(CONF_WINDOW_SENSORS, [])
