@@ -22,6 +22,7 @@ async def async_setup_entry(
         HeatingReasonSensor(coordinator, entry),
         AvgIndoorTempSensor(coordinator, entry),
         MinIndoorTempSensor(coordinator, entry),
+        IndoorTrendSensor(coordinator, entry),
     ])
 
 
@@ -63,12 +64,19 @@ class HeatingRelevantTempSensor(_BaseSensor):
     @property
     def extra_state_attributes(self):
         d = self.coordinator.data or {}
+        c = d.get("components", {})
         return {
             "echte_aussentemperatur": d.get("outdoor_temp"),
             "wetterzustand": d.get("condition"),
             "tages_max": d.get("today_max"),
             "tages_min": d.get("today_min"),
             "morgen_min": d.get("tomorrow_min"),
+            "wetter_bonus": c.get("wetter_bonus"),
+            "tagestrend": c.get("tagestrend"),
+            "nacht_malus": c.get("nacht_malus"),
+            "morgen_malus": c.get("morgen_malus"),
+            "gebaeude_korrektur": c.get("gebaeude_korrektur"),
+            "trend_verfuegbar": d.get("indoor_trend_available"),
             "aktualisiert": d.get("updated_at"),
         }
 
@@ -131,3 +139,34 @@ class MinIndoorTempSensor(_BaseSensor):
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,
         )
+
+
+class IndoorTrendSensor(_BaseSensor):
+    def __init__(self, coordinator, entry):
+        super().__init__(
+            coordinator, entry,
+            key="indoor_trend_per_hour",
+            name="Innentemperatur Trend",
+            unit="°C/h",
+            device_class=None,
+            state_class=SensorStateClass.MEASUREMENT,
+        )
+
+    @property
+    def icon(self):
+        val = self.native_value
+        if val is None:
+            return "mdi:thermometer-lines"
+        if val < -0.3:
+            return "mdi:thermometer-chevron-down"
+        if val > 0.3:
+            return "mdi:thermometer-chevron-up"
+        return "mdi:thermometer-lines"
+
+    @property
+    def extra_state_attributes(self):
+        d = self.coordinator.data or {}
+        return {
+            "verfuegbar": d.get("indoor_trend_available"),
+            "gebaeude_korrektur": d.get("building_correction"),
+        }

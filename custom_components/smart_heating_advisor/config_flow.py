@@ -51,7 +51,7 @@ class SmartHeatingAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     device_class="temperature",
                     multiple=True,
                 )
-            ),
+            ),  # Pflicht: wird fuer Gebaeude-Waermetraegheit benoetigt
             vol.Required(CONF_WEATHER_ENTITY): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="weather")
             ),

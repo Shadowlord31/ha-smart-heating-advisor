@@ -7,7 +7,6 @@ from math import sin, pi
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -27,6 +26,8 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+TREND_HOURS = 3  # Stunden fuer Trendberechnung
+
 
 class SmartHeatingCoordinator(DataUpdateCoordinator):
     """Koordiniert alle Berechnungen fuer den Smart Heating Advisor."""
@@ -45,7 +46,6 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
     # ------------------------------------------------------------------
 
     def _get_float(self, entity_id: str) -> float | None:
-        """Gibt den State einer Entity als float zurueck."""
         state = self.hass.states.get(entity_id)
         if state is None or state.state in ("unavailable", "unknown"):
             return None
@@ -55,14 +55,12 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
             return None
 
     def _get_bool(self, entity_id: str) -> bool:
-        """Gibt den State einer binary_sensor Entity als bool zurueck."""
         state = self.hass.states.get(entity_id)
         if state is None:
             return False
         return state.state == "on"
 
     def _avg_indoor_temp(self) -> float | None:
-        """Durchschnitt aller konfigurierten Innentemperatursensoren."""
         sensors = self._config.get(CONF_INDOOR_TEMPS, [])
         values = [v for s in sensors if (v := self._get_float(s)) is not None]
         if not values:
@@ -70,7 +68,6 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         return round(sum(values) / len(values), 1)
 
     def _min_indoor_temp(self) -> float | None:
-        """Minimum aller Innentemperaturen (kaeltester Raum)."""
         sensors = self._config.get(CONF_INDOOR_TEMPS, [])
         values = [v for s in sensors if (v := self._get_float(s)) is not None]
         if not values:
@@ -78,12 +75,86 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         return round(min(values), 1)
 
     def _any_window_open(self) -> bool:
-        """True wenn mindestens ein Fenster offen ist."""
         sensors = self._config.get(CONF_WINDOW_SENSORS, [])
         return any(self._get_bool(s) for s in sensors)
 
     # ------------------------------------------------------------------
-    # Wetterbonus (identisch zu bisherigem Sensor)
+    # Recorder-Zugriff fuer Trend
+    # ------------------------------------------------------------------
+
+    async def _get_indoor_temp_hours_ago(self, hours: float) -> float | None:
+        """Gibt die durchschnittliche Innentemperatur vor X Stunden zurueck."""
+        try:
+            from homeassistant.components.recorder import get_instance
+            from homeassistant.components.recorder.history import get_significant_states
+
+            sensors = self._config.get(CONF_INDOOR_TEMPS, [])
+            if not sensors:
+                return None
+
+            start = dt_util.now() - timedelta(hours=hours + 0.5)
+            end = dt_util.now() - timedelta(hours=hours - 0.5)
+
+            instance = get_instance(self.hass)
+            states = await instance.async_add_executor_job(
+                get_significant_states,
+                self.hass,
+                start,
+                end,
+                sensors,
+            )
+
+            values = []
+            for entity_states in states.values():
+                for state in entity_states:
+                    try:
+                        values.append(float(state.state))
+                        break
+                    except (ValueError, TypeError):
+                        continue
+
+            if not values:
+                return None
+            return round(sum(values) / len(values), 1)
+
+        except Exception as e:
+            _LOGGER.debug("Recorder-Zugriff fehlgeschlagen: %s", e)
+            return None
+
+    async def _calc_building_trend(self, current_indoor: float) -> dict:
+        """
+        Berechnet den Innentemperatur-Trend der letzten Stunden.
+        Gibt correction und trend_per_hour zurueck.
+        """
+        temp_ago = await self._get_indoor_temp_hours_ago(TREND_HOURS)
+
+        if temp_ago is None or current_indoor is None:
+            return {"correction": 0.0, "trend_per_hour": None, "available": False}
+
+        trend_per_hour = (current_indoor - temp_ago) / TREND_HOURS
+
+        # Korrekturfaktor: fallende Innentemp senkt heizrelevante Aussentemp
+        # (signalisiert: Gebaeude kuehlt aus, fruehzeitiger heizen)
+        if trend_per_hour < -0.4:
+            correction = trend_per_hour * 2.5  # z.B. -0.5/h -> -1.25 Korrektur
+        elif trend_per_hour < -0.1:
+            correction = trend_per_hour * 1.5  # leichtes Abkuehlen
+        elif trend_per_hour > 0.3:
+            correction = trend_per_hour * 1.0  # Wohnung heizt sich auf -> etwas weniger heizen
+        else:
+            correction = 0.0  # stabil, kein Einfluss
+
+        # Begrenzen damit ein Ausreisser nicht alles dominiert
+        correction = max(-3.0, min(2.0, correction))
+
+        return {
+            "correction": round(correction, 2),
+            "trend_per_hour": round(trend_per_hour, 3),
+            "available": True,
+        }
+
+    # ------------------------------------------------------------------
+    # Wetterbonus
     # ------------------------------------------------------------------
 
     WEATHER_BONUS = {
@@ -108,7 +179,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         return self.WEATHER_BONUS.get(condition, 0.0)
 
     # ------------------------------------------------------------------
-    # Tagestrend (Sinus-Kurve, 6-20 Uhr)
+    # Tagestrend
     # ------------------------------------------------------------------
 
     def _day_trend(self, current: float, max_temp: float) -> float:
@@ -120,14 +191,13 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         return (max_temp - current) * 0.5 * day_factor
 
     # ------------------------------------------------------------------
-    # Hauptberechnung: heizrelevante Aussentemperatur
+    # Forecast
     # ------------------------------------------------------------------
 
-    async def _fetch_forecast(self) -> list | None:
-        """Ruft den Tages-Forecast vom Weather-Entity ab."""
+    async def _fetch_forecast(self) -> list:
         weather_entity = self._config.get(CONF_WEATHER_ENTITY)
         if not weather_entity:
-            return None
+            return []
         try:
             response = await self.hass.services.async_call(
                 "weather",
@@ -140,15 +210,19 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
             return response.get(weather_entity, {}).get("forecast", [])
         except Exception as e:
             _LOGGER.warning("Forecast konnte nicht abgerufen werden: %s", e)
-            return None
+            return []
+
+    # ------------------------------------------------------------------
+    # Heizrelevante Aussentemperatur
+    # ------------------------------------------------------------------
 
     def _calc_heating_relevant_temp(
         self,
         current: float,
         condition: str,
         forecast: list,
-    ) -> float:
-        """Berechnet die heizrelevante Aussentemperatur."""
+        building_correction: float,
+    ) -> dict:
         today = forecast[0] if forecast else {}
         max_temp = float(today.get("temperature", current))
         min_temp = float(today.get("templow", current))
@@ -163,8 +237,6 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
             0.0
         )
 
-        # Morgen-Vorschau: wenn die naechste Nacht kalt wird, nachmittags
-        # nicht zu optimistisch sein
         tomorrow = forecast[1] if len(forecast) > 1 else {}
         min_temp_tomorrow = float(tomorrow.get("templow", min_temp))
         tomorrow_penalty = (
@@ -174,21 +246,35 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
             0.0
         )
 
-        calculated = current + weather_bonus + day_trend + night_penalty + tomorrow_penalty
-        # Clipping: max +-4 Grad vom aktuellen Wert
+        calculated = (
+            current
+            + weather_bonus
+            + day_trend
+            + night_penalty
+            + tomorrow_penalty
+            + building_correction
+        )
+
         limited = min(calculated, current + 4.0)
         limited = max(limited, current - 4.0)
-        return round(limited, 1)
+
+        return {
+            "value": round(limited, 1),
+            "components": {
+                "basis": current,
+                "wetter_bonus": round(weather_bonus, 1),
+                "tagestrend": round(day_trend, 2),
+                "nacht_malus": night_penalty,
+                "morgen_malus": tomorrow_penalty,
+                "gebaeude_korrektur": building_correction,
+            }
+        }
 
     # ------------------------------------------------------------------
-    # Sommermodus-Erkennung
+    # Sommermodus
     # ------------------------------------------------------------------
 
     def _calc_summer_mode(self, forecast: list) -> bool:
-        """
-        Sommermodus aktiv wenn die naechsten N Tage alle ueber
-        heating_threshold liegen (Tag-Max UND Nacht-Min).
-        """
         threshold = float(self._config.get(CONF_HEATING_THRESHOLD, DEFAULT_HEATING_THRESHOLD))
         days_needed = int(self._config.get(CONF_SUMMER_MODE_DAYS, DEFAULT_SUMMER_MODE_DAYS))
 
@@ -198,7 +284,6 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         for day in forecast[:days_needed]:
             day_max = float(day.get("temperature", 0))
             day_min = float(day.get("templow", 0))
-            # Beide muessen ueber Schwellwert liegen
             if day_min < threshold or day_max < threshold + 3:
                 return False
         return True
@@ -215,110 +300,66 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         summer_mode: bool,
         any_window_open: bool,
     ) -> dict:
-        """
-        Gibt eine Heizempfehlung zurueck.
-
-        Rueckgabe:
-          recommend: bool          - Heizen empfohlen?
-          reason: str              - Begruendung
-          target_temp: float|None  - Empfohlene Zieltemperatur
-          confidence: int          - 0-100
-        """
         threshold = float(self._config.get(CONF_HEATING_THRESHOLD, DEFAULT_HEATING_THRESHOLD))
         min_indoor_threshold = float(self._config.get(CONF_MIN_INDOOR_TEMP, DEFAULT_MIN_INDOOR_TEMP))
 
-        # Fenster offen -> kein Heizen
         if any_window_open:
-            return {
-                "recommend": False,
-                "reason": "Fenster geoeffnet",
-                "target_temp": None,
-                "confidence": 95,
-            }
+            return {"recommend": False, "reason": "Fenster geoeffnet", "target_temp": None, "confidence": 95}
 
-        # Sommermodus -> kein Heizen
         if summer_mode:
-            return {
-                "recommend": False,
-                "reason": "Sommermodus aktiv",
-                "target_temp": None,
-                "confidence": 90,
-            }
+            return {"recommend": False, "reason": "Sommermodus aktiv", "target_temp": None, "confidence": 90}
 
-        # Innentemperatur zu niedrig -> immer heizen
         if min_indoor is not None and min_indoor < min_indoor_threshold:
             delta = min_indoor_threshold - min_indoor
             target = round(min_indoor_threshold + 0.5, 1)
             confidence = min(100, int(70 + delta * 10))
-            return {
-                "recommend": True,
-                "reason": f"Innentemperatur zu niedrig ({min_indoor}°C)",
-                "target_temp": target,
-                "confidence": confidence,
-            }
+            return {"recommend": True, "reason": f"Innentemperatur zu niedrig ({min_indoor}°C)", "target_temp": target, "confidence": confidence}
 
-        # Aussentemperatur unter Schwellwert -> heizen empfohlen
         if heating_relevant_temp < threshold:
             delta = threshold - heating_relevant_temp
             target = round(min_indoor_threshold + min(delta * 0.3, 2.0), 1)
             confidence = min(100, int(60 + delta * 8))
-            return {
-                "recommend": True,
-                "reason": f"Heizrelevante Aussentemp. {heating_relevant_temp}°C unter Schwelle {threshold}°C",
-                "target_temp": target,
-                "confidence": confidence,
-            }
+            return {"recommend": True, "reason": f"Heizrelevante Aussentemp. {heating_relevant_temp}°C unter Schwelle {threshold}°C", "target_temp": target, "confidence": confidence}
 
-        # Aussentemperatur im Grenzbereich (threshold bis threshold+3)
         if heating_relevant_temp < threshold + 3:
-            return {
-                "recommend": False,
-                "reason": f"Grenzbereich ({heating_relevant_temp}°C), Beobachtung empfohlen",
-                "target_temp": None,
-                "confidence": 50,
-            }
+            return {"recommend": False, "reason": f"Grenzbereich ({heating_relevant_temp}°C), Beobachtung empfohlen", "target_temp": None, "confidence": 50}
 
-        return {
-            "recommend": False,
-            "reason": f"Aussentemperatur ausreichend ({heating_relevant_temp}°C)",
-            "target_temp": None,
-            "confidence": 85,
-        }
+        return {"recommend": False, "reason": f"Aussentemperatur ausreichend ({heating_relevant_temp}°C)", "target_temp": None, "confidence": 85}
 
     # ------------------------------------------------------------------
-    # Update-Methode (wird vom Coordinator aufgerufen)
+    # Update
     # ------------------------------------------------------------------
 
     async def _async_update_data(self) -> dict:
-        """Hauptupdate - liefert alle berechneten Werte."""
         try:
             outdoor_temp = self._get_float(self._config[CONF_OUTDOOR_TEMP])
+            if outdoor_temp is None:
+                raise UpdateFailed("Aussentemperatursensor nicht verfuegbar")
+
             weather_entity = self._config.get(CONF_WEATHER_ENTITY)
             weather_state = self.hass.states.get(weather_entity) if weather_entity else None
             condition = weather_state.state if weather_state else "unknown"
 
-            forecast = await self._fetch_forecast() or []
-
+            forecast = await self._fetch_forecast()
             avg_indoor = self._avg_indoor_temp()
             min_indoor = self._min_indoor_temp()
             any_window_open = self._any_window_open()
 
-            if outdoor_temp is None:
-                raise UpdateFailed("Aussentemperatursensor nicht verfuegbar")
+            # Gebaeude-Trend berechnen
+            building = await self._calc_building_trend(avg_indoor)
 
-            heating_relevant_temp = self._calc_heating_relevant_temp(
-                outdoor_temp, condition, forecast
+            # Heizrelevante Aussentemperatur
+            heating_result = self._calc_heating_relevant_temp(
+                outdoor_temp, condition, forecast, building["correction"]
             )
+            heating_relevant_temp = heating_result["value"]
+            components = heating_result["components"]
+
             summer_mode = self._calc_summer_mode(forecast)
             recommendation = self._calc_heating_recommendation(
-                heating_relevant_temp,
-                avg_indoor,
-                min_indoor,
-                summer_mode,
-                any_window_open,
+                heating_relevant_temp, avg_indoor, min_indoor, summer_mode, any_window_open
             )
 
-            # Forecast-Daten fuer Attribute
             today_forecast = forecast[0] if forecast else {}
             tomorrow_forecast = forecast[1] if len(forecast) > 1 else {}
 
@@ -337,6 +378,10 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
                 "today_max": today_forecast.get("temperature"),
                 "today_min": today_forecast.get("templow"),
                 "tomorrow_min": tomorrow_forecast.get("templow"),
+                "indoor_trend_per_hour": building["trend_per_hour"],
+                "indoor_trend_available": building["available"],
+                "building_correction": building["correction"],
+                "components": components,
                 "updated_at": dt_util.now().isoformat(),
             }
 
