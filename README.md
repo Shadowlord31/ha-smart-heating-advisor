@@ -69,13 +69,9 @@ Bei der Einrichtung werden folgende Felder abgefragt:
 | Feld | Pflicht | Beschreibung |
 |---|---|---|
 | Außentemperatursensor | ✅ | Ein einzelner Temperatursensor außen |
-| Innentemperaturen: Label | ☑️ | HA-Label — alle Sensoren mit diesem Label werden genutzt |
-| Innentemperaturen: Manuell | ☑️ | Einzelne Sensoren auswählen (Fallback wenn kein Label) |
-| Fensterkontakte: Label | ➖ | HA-Label für Fensterkontakte |
-| Fensterkontakte: Manuell | ➖ | Einzelne Fensterkontakte auswählen |
+| Innentemperatursensoren | ☑️ | Mehrere Räume möglich, wird für Trendberechnung genutzt |
+| Fensterkontakte | ➖ | Optional, verhindert Heizen bei offenem Fenster |
 | Wetter-Entity | ✅ | Weather-Entity für Mehrtages-Forecast |
-
-☑️ = mindestens eine der beiden Optionen (Label oder Manuell) empfohlen
 
 ### Anforderungen
 
@@ -147,13 +143,9 @@ During setup the following fields are shown:
 | Field | Required | Description |
 |---|---|---|
 | Outdoor Temperature Sensor | ✅ | A single outdoor temperature sensor |
-| Indoor Temps: Label | ☑️ | HA label — all sensors with this label are used |
-| Indoor Temps: Manual | ☑️ | Select sensors individually (fallback if no label) |
-| Window Contacts: Label | ➖ | HA label for window contacts |
-| Window Contacts: Manual | ➖ | Select window contacts individually |
-| Weather Entity | ✅ | Weather entity with daily forecast |
-
-☑️ = at least one of the two options (label or manual) is recommended
+| Indoor Temperature Sensors | ☑️ | Multiple rooms possible, used for trend calculation |
+| Window Contacts | ➖ | Optional, prevents heating with open windows |
+| Weather Entity | ✅ | Weather entity with daily forecast support |
 
 ### Requirements
 

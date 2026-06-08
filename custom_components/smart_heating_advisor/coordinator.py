@@ -16,8 +16,6 @@ from .const import (
     CONF_INDOOR_TEMPS,
     CONF_WEATHER_ENTITY,
     CONF_WINDOW_SENSORS,
-    CONF_INDOOR_TEMP_LABEL,
-    CONF_WINDOW_LABEL,
     DEFAULT_HEATING_THRESHOLD,
     DEFAULT_SUMMER_MODE_DAYS,
     DEFAULT_MIN_INDOOR_TEMP,
@@ -72,25 +70,11 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         ]
 
     def _resolve_indoor_sensors(self) -> list[str]:
-        """Label aus Text-Store hat Vorrang, sonst manuell gewaehlte Sensoren."""
-        text_store = self.hass.data.get(DOMAIN, {}).get(f"{self._entry_id}_texts", {})
-        label = text_store.get(CONF_INDOOR_TEMP_LABEL, "").strip()
-        if label:
-            sensors = self._entities_by_label(label, "sensor")
-            if sensors:
-                return sensors
-            _LOGGER.warning("Kein Sensor mit Label '%s' gefunden, nutze manuelle Auswahl", label)
+        """Gibt manuell konfigurierte Innensensoren zurueck."""
         return self._config.get(CONF_INDOOR_TEMPS, [])
 
     def _resolve_window_sensors(self) -> list[str]:
-        """Label aus Text-Store hat Vorrang, sonst manuell gewaehlte Sensoren."""
-        text_store = self.hass.data.get(DOMAIN, {}).get(f"{self._entry_id}_texts", {})
-        label = text_store.get(CONF_WINDOW_LABEL, "").strip()
-        if label:
-            sensors = self._entities_by_label(label, "binary_sensor")
-            if sensors:
-                return sensors
-            _LOGGER.warning("Kein binary_sensor mit Label '%s' gefunden, nutze manuelle Auswahl", label)
+        """Gibt manuell konfigurierte Fenstersensoren zurueck."""
         return self._config.get(CONF_WINDOW_SENSORS, [])
 
     # ------------------------------------------------------------------

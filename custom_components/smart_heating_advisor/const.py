@@ -25,5 +25,3 @@ NUMBER_MIN_INDOOR_TEMP = "num_min_indoor_temp"
 NUMBER_SUMMER_DAY_MAX = "num_summer_day_max"
 NUMBER_SUMMER_MIN_INDOOR = "num_summer_min_indoor"
 
-CONF_INDOOR_TEMP_LABEL = "indoor_temp_label"
-CONF_WINDOW_LABEL = "window_label"
