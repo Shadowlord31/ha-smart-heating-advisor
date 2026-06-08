@@ -31,7 +31,8 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-TREND_HOURS = 3  # Stunden für Trendberechnung
+TREND_HOURS = 24  # Stunden fuer Trendberechnung
+VENTILATION_FACTOR = 0.08  # Abkuehlung pro Grad Delta pro Stunde offen
 
 
 class SmartHeatingCoordinator(DataUpdateCoordinator):
@@ -157,35 +158,93 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("Recorder-Zugriff fehlgeschlagen: %s", e)
             return None
 
+    async def _calc_ventilation_cooling(self, outdoor_temp: float) -> float:
+        """
+        Berechnet die erwartete Abkuehlung durch Lueften der letzten 24h.
+        Formel: (Innen - Aussen) * Fenster_offen_Stunden * VENTILATION_FACTOR
+        """
+        window_sensors = self._resolve_window_sensors()
+        if not window_sensors:
+            return 0.0
+        try:
+            from homeassistant.components.recorder import get_instance
+            from homeassistant.components.recorder.history import get_significant_states
+
+            now = dt_util.now()
+            start = now - timedelta(hours=TREND_HOURS)
+            instance = get_instance(self.hass)
+            history = await instance.async_add_executor_job(
+                get_significant_states,
+                self.hass,
+                start,
+                now,
+                window_sensors,
+            )
+            if not history:
+                return 0.0
+
+            total_open_seconds = 0.0
+            for entity_id, states in history.items():
+                if not states:
+                    continue
+                for i, state in enumerate(states):
+                    if state.state != "on":
+                        continue
+                    seg_start = max(state.last_updated, start)
+                    seg_end = states[i + 1].last_updated if i + 1 < len(states) else now
+                    seg_end = min(seg_end, now)
+                    if seg_end > seg_start:
+                        total_open_seconds += (seg_end - seg_start).total_seconds()
+
+            open_hours = total_open_seconds / 3600 / max(len(window_sensors), 1)
+            current_indoor = self._avg_indoor_temp() or 20.0
+            delta = max(current_indoor - outdoor_temp, 0)
+            return round(min(delta * open_hours * VENTILATION_FACTOR, 3.0), 2)
+        except Exception as e:
+            _LOGGER.debug("Lueftungsberechnung fehlgeschlagen: %s", e)
+            return 0.0
+
     async def _calc_building_trend(self, current_indoor: float, outdoor_temp: float) -> dict:
         """
-        Berechnet den Innentemperatur-Trend der letzten Stunden.
-        Gibt correction und trend_per_hour zurueck.
+        Fensterbereinigter 24h-Gebaeudewaermetrend.
         """
-        temp_ago = await self._get_indoor_temp_hours_ago(TREND_HOURS)
+        temp_24h_ago = await self._get_indoor_temp_hours_ago(TREND_HOURS)
 
-        if temp_ago is None or current_indoor is None:
-            return {"correction": 0.0, "trend_per_hour": None, "available": False}
+        if temp_24h_ago is None or current_indoor is None:
+            return {
+                "correction": 0.0,
+                "trend_per_hour": None,
+                "ventilation_cooling": 0.0,
+                "corrected_trend": None,
+                "available": False,
+            }
 
-        trend_per_hour = (current_indoor - temp_ago) / TREND_HOURS
+        raw_trend = current_indoor - temp_24h_ago  # Gesamt-Delta in °C ueber 24h
+        trend_per_hour = raw_trend / TREND_HOURS
 
-        # Korrekturfaktor: fallende Innentemp senkt heizrelevante Aussentemp
-        # (signalisiert: Gebaeude kuehlt aus, fruehzeitiger heizen)
-        if trend_per_hour < -0.4:
-            correction = trend_per_hour * 2.5  # z.B. -0.5/h -> -1.25 Korrektur
-        elif trend_per_hour < -0.1:
-            correction = trend_per_hour * 1.5  # leichtes Abkuehlen
-        elif trend_per_hour > 0.3:
-            correction = trend_per_hour * 1.0  # Wohnung heizt sich auf -> etwas weniger heizen
+        ventilation_cooling = await self._calc_ventilation_cooling(outdoor_temp)
+        corrected_trend = raw_trend + ventilation_cooling
+
+        if corrected_trend < -2.0:
+            correction = -3.0
+        elif corrected_trend < -1.0:
+            correction = -2.0
+        elif corrected_trend < -0.5:
+            correction = -1.0
+        elif corrected_trend < 0.0:
+            correction = -0.5
+        elif corrected_trend > 1.5:
+            correction = 1.0
+        elif corrected_trend > 0.5:
+            correction = 0.5
         else:
-            correction = 0.0  # stabil, kein Einfluss
-
-        # Begrenzen damit ein Ausreisser nicht alles dominiert
-        correction = max(-3.0, min(2.0, correction))
+            correction = 0.0
 
         return {
             "correction": round(correction, 2),
             "trend_per_hour": round(trend_per_hour, 3),
+            "ventilation_cooling": ventilation_cooling,
+            "corrected_trend": round(corrected_trend, 2),
             "available": True,
         }
 
