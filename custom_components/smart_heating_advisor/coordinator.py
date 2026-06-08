@@ -6,6 +6,7 @@ from datetime import timedelta, datetime
 from math import sin, pi
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -15,6 +16,8 @@ from .const import (
     CONF_INDOOR_TEMPS,
     CONF_WEATHER_ENTITY,
     CONF_WINDOW_SENSORS,
+    CONF_INDOOR_TEMP_LABEL,
+    CONF_WINDOW_LABEL,
     DEFAULT_HEATING_THRESHOLD,
     DEFAULT_SUMMER_MODE_DAYS,
     DEFAULT_MIN_INDOOR_TEMP,
@@ -56,6 +59,39 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         return float(store.get(key, default))
 
     # ------------------------------------------------------------------
+    # Label-Aufloesung
+    # ------------------------------------------------------------------
+
+    def _entities_by_label(self, label: str, domain: str) -> list[str]:
+        """Gibt alle Entitaeten mit dem angegebenen Label und Domain zurueck."""
+        registry = er.async_get(self.hass)
+        return [
+            e.entity_id for e in registry.entities.values()
+            if label in (e.labels or set())
+            and e.domain == domain
+        ]
+
+    def _resolve_indoor_sensors(self) -> list[str]:
+        """Label hat Vorrang, sonst manuell gewaehlte Sensoren."""
+        label = self._config.get(CONF_INDOOR_TEMP_LABEL, "").strip()
+        if label:
+            sensors = self._entities_by_label(label, "sensor")
+            if sensors:
+                return sensors
+            _LOGGER.warning("Kein Sensor mit Label '%s' gefunden, nutze manuelle Auswahl", label)
+        return self._config.get(CONF_INDOOR_TEMPS, [])
+
+    def _resolve_window_sensors(self) -> list[str]:
+        """Label hat Vorrang, sonst manuell gewaehlte Sensoren."""
+        label = self._config.get(CONF_WINDOW_LABEL, "").strip()
+        if label:
+            sensors = self._entities_by_label(label, "binary_sensor")
+            if sensors:
+                return sensors
+            _LOGGER.warning("Kein binary_sensor mit Label '%s' gefunden, nutze manuelle Auswahl", label)
+        return self._config.get(CONF_WINDOW_SENSORS, [])
+
+    # ------------------------------------------------------------------
     # Hilfsmethoden
     # ------------------------------------------------------------------
 
@@ -75,21 +111,21 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         return state.state == "on"
 
     def _avg_indoor_temp(self) -> float | None:
-        sensors = self._config.get(CONF_INDOOR_TEMPS, [])
+        sensors = self._resolve_indoor_sensors()
         values = [v for s in sensors if (v := self._get_float(s)) is not None]
         if not values:
             return None
         return round(sum(values) / len(values), 1)
 
     def _min_indoor_temp(self) -> float | None:
-        sensors = self._config.get(CONF_INDOOR_TEMPS, [])
+        sensors = self._resolve_indoor_sensors()
         values = [v for s in sensors if (v := self._get_float(s)) is not None]
         if not values:
             return None
         return round(min(values), 1)
 
     def _any_window_open(self) -> bool:
-        sensors = self._config.get(CONF_WINDOW_SENSORS, [])
+        sensors = self._resolve_window_sensors()
         return any(self._get_bool(s) for s in sensors)
 
     # ------------------------------------------------------------------
@@ -102,7 +138,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
             from homeassistant.components.recorder import get_instance
             from homeassistant.components.recorder.history import get_significant_states
 
-            sensors = self._config.get(CONF_INDOOR_TEMPS, [])
+            sensors = self._resolve_indoor_sensors()
             if not sensors:
                 return None
 
@@ -415,6 +451,8 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
                 "building_correction": building["correction"],
                 "components": components,
                 "updated_at": dt_util.now().isoformat(),
+                "active_indoor_sensors": self._resolve_indoor_sensors(),
+                "active_window_sensors": self._resolve_window_sensors(),
             }
 
         except UpdateFailed:

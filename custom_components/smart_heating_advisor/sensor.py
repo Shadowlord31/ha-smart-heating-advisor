@@ -77,6 +77,8 @@ class HeatingRelevantTempSensor(_BaseSensor):
             "morgen_malus": c.get("morgen_malus"),
             "gebaeude_korrektur": c.get("gebaeude_korrektur"),
             "trend_verfuegbar": d.get("indoor_trend_available"),
+            "aktive_innensensoren": d.get("active_indoor_sensors"),
+            "aktive_fenstersensoren": d.get("active_window_sensors"),
             "aktualisiert": d.get("updated_at"),
         }
 

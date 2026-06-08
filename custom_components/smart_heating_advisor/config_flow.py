@@ -12,11 +12,57 @@ from .const import (
     CONF_INDOOR_TEMPS,
     CONF_WEATHER_ENTITY,
     CONF_WINDOW_SENSORS,
+    CONF_INDOOR_TEMP_LABEL,
+    CONF_WINDOW_LABEL,
 )
 
 
+def _build_schema(defaults: dict) -> vol.Schema:
+    return vol.Schema({
+        vol.Required(
+            CONF_OUTDOOR_TEMP,
+            default=defaults.get(CONF_OUTDOOR_TEMP)
+        ): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
+        ),
+        vol.Optional(
+            CONF_INDOOR_TEMP_LABEL,
+            default=defaults.get(CONF_INDOOR_TEMP_LABEL, "")
+        ): selector.LabelSelector(),
+        vol.Optional(
+            CONF_INDOOR_TEMPS,
+            default=defaults.get(CONF_INDOOR_TEMPS, [])
+        ): selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                domain="sensor",
+                device_class="temperature",
+                multiple=True,
+            )
+        ),
+        vol.Optional(
+            CONF_WINDOW_LABEL,
+            default=defaults.get(CONF_WINDOW_LABEL, "")
+        ): selector.LabelSelector(),
+        vol.Optional(
+            CONF_WINDOW_SENSORS,
+            default=defaults.get(CONF_WINDOW_SENSORS, [])
+        ): selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                domain="binary_sensor",
+                multiple=True,
+            )
+        ),
+        vol.Required(
+            CONF_WEATHER_ENTITY,
+            default=defaults.get(CONF_WEATHER_ENTITY)
+        ): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain="weather")
+        ),
+    })
+
+
 class SmartHeatingAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Config Flow - nur noch Sensor-Auswahl, Schwellen im Geraet."""
+    """Config Flow - Sensor-Auswahl, wahlweise per Label oder manuell."""
 
     VERSION = 1
 
@@ -33,35 +79,10 @@ class SmartHeatingAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     data=user_input,
                 )
 
-        schema = vol.Schema({
-            vol.Required(CONF_OUTDOOR_TEMP): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
-            ),
-            vol.Required(CONF_INDOOR_TEMPS): selector.EntitySelector(
-                selector.EntitySelectorConfig(
-                    domain="sensor",
-                    device_class="temperature",
-                    multiple=True,
-                )
-            ),
-            vol.Required(CONF_WEATHER_ENTITY): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="weather")
-            ),
-            vol.Optional(CONF_WINDOW_SENSORS, default=[]): selector.EntitySelector(
-                selector.EntitySelectorConfig(
-                    domain="binary_sensor",
-                    multiple=True,
-                )
-            ),
-        })
-
         return self.async_show_form(
             step_id="user",
-            data_schema=schema,
+            data_schema=_build_schema({}),
             errors=errors,
-            description_placeholders={
-                "note": "Schwellwerte koennen nach der Einrichtung direkt im Geraet angepasst werden."
-            }
         )
 
     @staticmethod
@@ -71,43 +92,17 @@ class SmartHeatingAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class SmartHeatingAdvisorOptionsFlow(config_entries.OptionsFlow):
-    """Options Flow - nur Sensoren aenderbar."""
+    """Options Flow - Sensoren aenderbar."""
 
     def __init__(self, config_entry):
         self._config_entry = config_entry
 
     async def async_step_init(self, user_input=None):
-        current = self._config_entry.data
-
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        schema = vol.Schema({
-            vol.Required(
-                CONF_OUTDOOR_TEMP, default=current.get(CONF_OUTDOOR_TEMP)
-            ): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
-            ),
-            vol.Required(
-                CONF_INDOOR_TEMPS, default=current.get(CONF_INDOOR_TEMPS, [])
-            ): selector.EntitySelector(
-                selector.EntitySelectorConfig(
-                    domain="sensor", device_class="temperature", multiple=True
-                )
-            ),
-            vol.Required(
-                CONF_WEATHER_ENTITY, default=current.get(CONF_WEATHER_ENTITY)
-            ): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="weather")
-            ),
-            vol.Optional(
-                CONF_WINDOW_SENSORS, default=current.get(CONF_WINDOW_SENSORS, [])
-            ): selector.EntitySelector(
-                selector.EntitySelectorConfig(
-                    domain="binary_sensor",
-                    multiple=True,
-                )
-            ),
-        })
-
-        return self.async_show_form(step_id="init", data_schema=schema)
+        current = {**self._config_entry.data, **self._config_entry.options}
+        return self.async_show_form(
+            step_id="init",
+            data_schema=_build_schema(current),
+        )
