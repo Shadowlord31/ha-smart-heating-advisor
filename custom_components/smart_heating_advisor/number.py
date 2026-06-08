@@ -1,4 +1,4 @@
-"""Number-Entitaeten fuer Smart Heating Advisor."""
+"""Number-Entitaeten für Smart Heating Advisor."""
 from __future__ import annotations
 
 from homeassistant.components.number import NumberEntity, NumberMode
@@ -33,7 +33,7 @@ async def async_setup_entry(
             coordinator=coordinator,
             entry=entry,
             key=NUMBER_HEATING_THRESHOLD,
-            name="Heizschwelle Aussentemperatur",
+            name="Heizschwelle Außentemperatur",
             icon="mdi:thermometer-alert",
             min_value=5.0,
             max_value=25.0,

@@ -1,4 +1,4 @@
-"""Sensor-Entitaeten fuer Smart Heating Advisor."""
+"""Sensor-Entitaeten für Smart Heating Advisor."""
 from __future__ import annotations
 
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
@@ -55,7 +55,7 @@ class HeatingRelevantTempSensor(_BaseSensor):
         super().__init__(
             coordinator, entry,
             key="heating_relevant_temp",
-            name="Heizrelevante Aussentemperatur",
+            name="Heizrelevante Außentemperatur",
             unit="°C",
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,

@@ -1,4 +1,4 @@
-"""BinarySensor-Entitaeten fuer Smart Heating Advisor."""
+"""BinarySensor-Entitaeten für Smart Heating Advisor."""
 from __future__ import annotations
 
 from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorDeviceClass

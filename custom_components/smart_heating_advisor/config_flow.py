@@ -1,4 +1,4 @@
-"""Config Flow fuer Smart Heating Advisor."""
+"""Config Flow für Smart Heating Advisor."""
 from __future__ import annotations
 
 import voluptuous as vol
@@ -62,8 +62,6 @@ def _build_schema(defaults: dict) -> vol.Schema:
 
 
 class SmartHeatingAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Config Flow - Sensor-Auswahl, wahlweise per Label oder manuell."""
-
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
@@ -92,8 +90,6 @@ class SmartHeatingAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class SmartHeatingAdvisorOptionsFlow(config_entries.OptionsFlow):
-    """Options Flow - Sensoren aenderbar."""
-
     def __init__(self, config_entry):
         self._config_entry = config_entry
 

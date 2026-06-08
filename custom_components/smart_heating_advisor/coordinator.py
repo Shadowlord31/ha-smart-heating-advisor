@@ -33,11 +33,11 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-TREND_HOURS = 3  # Stunden fuer Trendberechnung
+TREND_HOURS = 3  # Stunden für Trendberechnung
 
 
 class SmartHeatingCoordinator(DataUpdateCoordinator):
-    """Koordiniert alle Berechnungen fuer den Smart Heating Advisor."""
+    """Koordiniert alle Berechnungen für den Smart Heating Advisor."""
 
     def __init__(self, hass: HomeAssistant, config: dict, entry_id: str) -> None:
         super().__init__(
@@ -129,7 +129,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         return any(self._get_bool(s) for s in sensors)
 
     # ------------------------------------------------------------------
-    # Recorder-Zugriff fuer Trend
+    # Recorder-Zugriff für Trend
     # ------------------------------------------------------------------
 
     async def _get_indoor_temp_hours_ago(self, hours: float) -> float | None:
@@ -263,7 +263,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
             return []
 
     # ------------------------------------------------------------------
-    # Heizrelevante Aussentemperatur
+    # Heizrelevante Außentemperatur
     # ------------------------------------------------------------------
 
     def _calc_heating_relevant_temp(
@@ -392,7 +392,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         if heating_relevant_temp < threshold + 3:
             return {"recommend": False, "reason": f"Grenzbereich ({heating_relevant_temp}°C), Beobachtung empfohlen", "target_temp": None, "confidence": 50}
 
-        return {"recommend": False, "reason": f"Aussentemperatur ausreichend ({heating_relevant_temp}°C)", "target_temp": None, "confidence": 85}
+        return {"recommend": False, "reason": f"Außentemperatur ausreichend ({heating_relevant_temp}°C)", "target_temp": None, "confidence": 85}
 
     # ------------------------------------------------------------------
     # Update
@@ -402,7 +402,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         try:
             outdoor_temp = self._get_float(self._config[CONF_OUTDOOR_TEMP])
             if outdoor_temp is None:
-                raise UpdateFailed("Aussentemperatursensor nicht verfuegbar")
+                raise UpdateFailed("Außentemperatursensor nicht verfuegbar")
 
             weather_entity = self._config.get(CONF_WEATHER_ENTITY)
             weather_state = self.hass.states.get(weather_entity) if weather_entity else None
@@ -416,7 +416,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
             # Gebaeude-Trend berechnen
             building = await self._calc_building_trend(avg_indoor)
 
-            # Heizrelevante Aussentemperatur
+            # Heizrelevante Außentemperatur
             heating_result = self._calc_heating_relevant_temp(
                 outdoor_temp, condition, forecast, building["correction"]
             )
