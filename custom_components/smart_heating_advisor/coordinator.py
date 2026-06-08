@@ -157,7 +157,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("Recorder-Zugriff fehlgeschlagen: %s", e)
             return None
 
-    async def _calc_building_trend(self, current_indoor: float) -> dict:
+    async def _calc_building_trend(self, current_indoor: float, outdoor_temp: float) -> dict:
         """
         Berechnet den Innentemperatur-Trend der letzten Stunden.
         Gibt correction und trend_per_hour zurueck.
