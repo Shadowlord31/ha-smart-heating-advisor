@@ -12,8 +12,6 @@ from .const import (
     CONF_INDOOR_TEMPS,
     CONF_WEATHER_ENTITY,
     CONF_WINDOW_SENSORS,
-    CONF_INDOOR_TEMP_LABEL,
-    CONF_WINDOW_LABEL,
 )
 
 
@@ -26,12 +24,6 @@ def _build_schema(defaults: dict) -> vol.Schema:
             selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
         ),
         vol.Optional(
-            CONF_INDOOR_TEMP_LABEL,
-            default=defaults.get(CONF_INDOOR_TEMP_LABEL, "")
-        ): selector.TextSelector(
-            selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
-        ),
-        vol.Optional(
             CONF_INDOOR_TEMPS,
             default=defaults.get(CONF_INDOOR_TEMPS, [])
         ): selector.EntitySelector(
@@ -40,12 +32,6 @@ def _build_schema(defaults: dict) -> vol.Schema:
                 device_class="temperature",
                 multiple=True,
             )
-        ),
-        vol.Optional(
-            CONF_WINDOW_LABEL,
-            default=defaults.get(CONF_WINDOW_LABEL, "")
-        ): selector.TextSelector(
-            selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
         ),
         vol.Optional(
             CONF_WINDOW_SENSORS,

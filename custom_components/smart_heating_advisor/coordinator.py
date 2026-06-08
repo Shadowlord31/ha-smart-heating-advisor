@@ -72,8 +72,9 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         ]
 
     def _resolve_indoor_sensors(self) -> list[str]:
-        """Label hat Vorrang, sonst manuell gewaehlte Sensoren."""
-        label = self._config.get(CONF_INDOOR_TEMP_LABEL, "").strip()
+        """Label aus Text-Store hat Vorrang, sonst manuell gewaehlte Sensoren."""
+        text_store = self.hass.data.get(DOMAIN, {}).get(f"{self._entry_id}_texts", {})
+        label = text_store.get(CONF_INDOOR_TEMP_LABEL, "").strip()
         if label:
             sensors = self._entities_by_label(label, "sensor")
             if sensors:
@@ -82,8 +83,9 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         return self._config.get(CONF_INDOOR_TEMPS, [])
 
     def _resolve_window_sensors(self) -> list[str]:
-        """Label hat Vorrang, sonst manuell gewaehlte Sensoren."""
-        label = self._config.get(CONF_WINDOW_LABEL, "").strip()
+        """Label aus Text-Store hat Vorrang, sonst manuell gewaehlte Sensoren."""
+        text_store = self.hass.data.get(DOMAIN, {}).get(f"{self._entry_id}_texts", {})
+        label = text_store.get(CONF_WINDOW_LABEL, "").strip()
         if label:
             sensors = self._entities_by_label(label, "binary_sensor")
             if sensors:

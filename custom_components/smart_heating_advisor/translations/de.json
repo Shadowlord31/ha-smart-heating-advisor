@@ -3,20 +3,12 @@
     "step": {
       "user": {
         "title": "Smart Heating Advisor einrichten",
-        "description": "Wähle die Sensoren aus die für die Heizungsempfehlung berücksichtigt werden sollen.",
+        "description": "Wähle die Sensoren aus die für die Heizungsempfehlung berücksichtigt werden sollen. Labels können nach der Einrichtung direkt im Gerät konfiguriert werden.",
         "data": {
           "outdoor_temp_sensor": "Außentemperatursensor",
-          "indoor_temp_label": "Innentemperaturen: Label-Name",
-          "indoor_temp_sensors": "Innentemperaturen: Manuelle Auswahl",
-          "window_label": "Fensterkontakte: Label-Name (optional)",
-          "window_sensors": "Fensterkontakte: Manuelle Auswahl (optional)",
+          "indoor_temp_sensors": "Innentemperatursensoren (mehrere möglich)",
+          "window_sensors": "Fensterkontakte (optional)",
           "weather_entity": "Wetter-Entity (für Forecast)"
-        },
-        "data_description": {
-          "indoor_temp_label": "Name des HA-Labels — alle Temperatursensoren mit diesem Label werden automatisch berücksichtigt. Hat Vorrang vor der manuellen Auswahl.",
-          "indoor_temp_sensors": "Nur nötig wenn kein Label angegeben ist.",
-          "window_label": "Name des HA-Labels für Fensterkontakte. Hat Vorrang vor der manuellen Auswahl.",
-          "window_sensors": "Nur nötig wenn kein Label angegeben ist."
         }
       }
     },
@@ -30,17 +22,9 @@
         "title": "Smart Heating Advisor Einstellungen",
         "data": {
           "outdoor_temp_sensor": "Außentemperatursensor",
-          "indoor_temp_label": "Innentemperaturen: Label-Name",
-          "indoor_temp_sensors": "Innentemperaturen: Manuelle Auswahl",
-          "window_label": "Fensterkontakte: Label-Name (optional)",
-          "window_sensors": "Fensterkontakte: Manuelle Auswahl (optional)",
+          "indoor_temp_sensors": "Innentemperatursensoren (mehrere möglich)",
+          "window_sensors": "Fensterkontakte (optional)",
           "weather_entity": "Wetter-Entity (für Forecast)"
-        },
-        "data_description": {
-          "indoor_temp_label": "Name des HA-Labels — alle Temperatursensoren mit diesem Label werden automatisch berücksichtigt. Hat Vorrang vor der manuellen Auswahl.",
-          "indoor_temp_sensors": "Nur nötig wenn kein Label angegeben ist.",
-          "window_label": "Name des HA-Labels für Fensterkontakte. Hat Vorrang vor der manuellen Auswahl.",
-          "window_sensors": "Nur nötig wenn kein Label angegeben ist."
         }
       }
     }
