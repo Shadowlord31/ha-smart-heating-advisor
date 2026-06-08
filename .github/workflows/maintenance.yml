@@ -2,7 +2,7 @@ name: Monthly Maintenance
 
 on:
   schedule:
-    - cron: "0 10 1 * *"
+    - cron: "0 10 * * 3"
   workflow_dispatch:
 
 jobs:
@@ -15,25 +15,52 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get latest HA version
+      - name: Find stable HA version (at least 3 months old)
         id: ha_version
         run: |
-          HA_VERSION=$(curl -s https://api.github.com/repos/home-assistant/core/releases/latest | jq -r .tag_name)
-          echo "version=$HA_VERSION" >> $GITHUB_OUTPUT
-          echo "Latest HA version: $HA_VERSION"
+          # Alle Releases holen und das neueste finden das mindestens 90 Tage alt ist
+          RELEASES=$(curl -s "https://api.github.com/repos/home-assistant/core/releases?per_page=50")
+          CUTOFF=$(date -d "90 days ago" +%s)
 
-      - name: Get current integration version
-        id: int_version
+          TARGET_VERSION=""
+          for row in $(echo "$RELEASES" | jq -r ".[] | @base64"); do
+            _jq() { echo "$row" | base64 --decode | jq -r "$1"; }
+            TAG=$(_jq ".tag_name")
+            DATE=$(_jq ".published_at")
+            TIMESTAMP=$(date -d "$DATE" +%s)
+
+            # Nur stabile Releases (keine Beta/RC/dev)
+            if echo "$TAG" | grep -qE "^[0-9]{4}\.[0-9]+\.[0-9]+$"; then
+              if [ "$TIMESTAMP" -le "$CUTOFF" ]; then
+                TARGET_VERSION="$TAG"
+                echo "Found stable version: $TAG (published: $DATE)"
+                break
+              fi
+            fi
+          done
+
+          if [ -z "$TARGET_VERSION" ]; then
+            echo "No version older than 90 days found, skipping"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "version=$TARGET_VERSION" >> $GITHUB_OUTPUT
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check current minimum version
+        if: steps.ha_version.outputs.skip != 'true'
+        id: current
         run: |
-          VERSION=$(jq -r .version custom_components/smart_heating_advisor/manifest.json)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Current integration version: $VERSION"
+          CURRENT=$(jq -r '.homeassistant // "none"' custom_components/smart_heating_advisor/manifest.json)
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+          echo "Current minimum: $CURRENT"
 
-      - name: Update manifest.json with latest HA version
+      - name: Update manifest.json
+        if: steps.ha_version.outputs.skip != 'true' && steps.current.outputs.current != steps.ha_version.outputs.version
         run: |
           jq --arg ha "${{ steps.ha_version.outputs.version }}"             '.homeassistant = $ha'             custom_components/smart_heating_advisor/manifest.json > /tmp/manifest.json
           mv /tmp/manifest.json custom_components/smart_heating_advisor/manifest.json
-          echo "Updated homeassistant field to ${{ steps.ha_version.outputs.version }}"
+          echo "Updated homeassistant to ${{ steps.ha_version.outputs.version }}"
 
       - name: Check for changes
         id: changes
@@ -49,6 +76,10 @@ jobs:
           git commit -m "chore: update minimum HA version to ${{ steps.ha_version.outputs.version }}"
           git push
 
-      - name: No changes needed
-        if: steps.changes.outputs.changed == 'false'
-        run: echo "manifest.json already up to date, no commit needed"
+      - name: Status
+        run: |
+          if [ "${{ steps.changes.outputs.changed }}" == "true" ]; then
+            echo "Updated minimum HA version to ${{ steps.ha_version.outputs.version }}"
+          else
+            echo "No update needed – already up to date or version too recent"
+          fi
