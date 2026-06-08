@@ -15,12 +15,16 @@ from .const import (
     CONF_INDOOR_TEMPS,
     CONF_WEATHER_ENTITY,
     CONF_WINDOW_SENSORS,
-    CONF_HEATING_THRESHOLD,
-    CONF_SUMMER_MODE_DAYS,
-    CONF_MIN_INDOOR_TEMP,
     DEFAULT_HEATING_THRESHOLD,
     DEFAULT_SUMMER_MODE_DAYS,
     DEFAULT_MIN_INDOOR_TEMP,
+    DEFAULT_SUMMER_DAY_MAX,
+    DEFAULT_SUMMER_MIN_INDOOR,
+    NUMBER_HEATING_THRESHOLD,
+    NUMBER_SUMMER_MODE_DAYS,
+    NUMBER_MIN_INDOOR_TEMP,
+    NUMBER_SUMMER_DAY_MAX,
+    NUMBER_SUMMER_MIN_INDOOR,
     UPDATE_INTERVAL_MINUTES,
 )
 
@@ -32,7 +36,7 @@ TREND_HOURS = 3  # Stunden fuer Trendberechnung
 class SmartHeatingCoordinator(DataUpdateCoordinator):
     """Koordiniert alle Berechnungen fuer den Smart Heating Advisor."""
 
-    def __init__(self, hass: HomeAssistant, config: dict) -> None:
+    def __init__(self, hass: HomeAssistant, config: dict, entry_id: str) -> None:
         super().__init__(
             hass,
             _LOGGER,
@@ -40,6 +44,16 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(minutes=UPDATE_INTERVAL_MINUTES),
         )
         self._config = config
+        self._entry_id = entry_id
+
+    # ------------------------------------------------------------------
+    # Number-Store Zugriff
+    # ------------------------------------------------------------------
+
+    def _num(self, key: str, default: float) -> float:
+        """Liest einen Wert aus dem Number-Store."""
+        store = self.hass.data.get(DOMAIN, {}).get(f"{self._entry_id}_numbers", {})
+        return float(store.get(key, default))
 
     # ------------------------------------------------------------------
     # Hilfsmethoden
@@ -274,18 +288,35 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
     # Sommermodus
     # ------------------------------------------------------------------
 
-    def _calc_summer_mode(self, forecast: list) -> bool:
-        threshold = float(self._config.get(CONF_HEATING_THRESHOLD, DEFAULT_HEATING_THRESHOLD))
-        days_needed = int(self._config.get(CONF_SUMMER_MODE_DAYS, DEFAULT_SUMMER_MODE_DAYS))
+    def _calc_summer_mode(self, forecast: list, avg_indoor: float | None, indoor_trend: float | None) -> bool:
+        """
+        Sommermodus aktiv wenn:
+        - Tagesmaximum der naechsten N Tage ueber Sommer-Tagesmax-Schwelle
+        - Innentemperatur aktuell ueber Sommer-Mindest-Innentemperatur
+        - Innentemperatur-Trend nicht stark fallend
+        Nachttemperatur fliesst nicht mehr ein.
+        """
+        day_max_threshold = self._num(NUMBER_SUMMER_DAY_MAX, DEFAULT_SUMMER_DAY_MAX)
+        days_needed = int(self._num(NUMBER_SUMMER_MODE_DAYS, DEFAULT_SUMMER_MODE_DAYS))
+        summer_min_indoor = self._num(NUMBER_SUMMER_MIN_INDOOR, DEFAULT_SUMMER_MIN_INDOOR)
 
         if len(forecast) < days_needed:
             return False
 
+        # Tage pruefen: nur Tagesmaximum
         for day in forecast[:days_needed]:
             day_max = float(day.get("temperature", 0))
-            day_min = float(day.get("templow", 0))
-            if day_min < threshold or day_max < threshold + 3:
+            if day_max < day_max_threshold:
                 return False
+
+        # Innentemperatur muss noch warm genug sein
+        if avg_indoor is not None and avg_indoor < summer_min_indoor:
+            return False
+
+        # Wenn Wohnung stark auskuehlt kein Sommermodus
+        if indoor_trend is not None and indoor_trend < -0.4:
+            return False
+
         return True
 
     # ------------------------------------------------------------------
@@ -300,8 +331,8 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         summer_mode: bool,
         any_window_open: bool,
     ) -> dict:
-        threshold = float(self._config.get(CONF_HEATING_THRESHOLD, DEFAULT_HEATING_THRESHOLD))
-        min_indoor_threshold = float(self._config.get(CONF_MIN_INDOOR_TEMP, DEFAULT_MIN_INDOOR_TEMP))
+        threshold = self._num(NUMBER_HEATING_THRESHOLD, DEFAULT_HEATING_THRESHOLD)
+        min_indoor_threshold = self._num(NUMBER_MIN_INDOOR_TEMP, DEFAULT_MIN_INDOOR_TEMP)
 
         if any_window_open:
             return {"recommend": False, "reason": "Fenster geoeffnet", "target_temp": None, "confidence": 95}
@@ -355,7 +386,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
             heating_relevant_temp = heating_result["value"]
             components = heating_result["components"]
 
-            summer_mode = self._calc_summer_mode(forecast)
+            summer_mode = self._calc_summer_mode(forecast, avg_indoor, building["trend_per_hour"])
             recommendation = self._calc_heating_recommendation(
                 heating_relevant_temp, avg_indoor, min_indoor, summer_mode, any_window_open
             )
