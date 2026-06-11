@@ -25,3 +25,11 @@ NUMBER_MIN_INDOOR_TEMP = "num_min_indoor_temp"
 NUMBER_SUMMER_DAY_MAX = "num_summer_day_max"
 NUMBER_SUMMER_MIN_INDOOR = "num_summer_min_indoor"
 
+
+CONF_FEELS_LIKE_SENSOR = "feels_like_sensor"
+CONF_RAIN_RATE_SENSOR = "rain_rate_sensor"
+CONF_WIND_SPEED_SENSOR = "wind_speed_sensor"
+
+WIND_CHILL_THRESHOLD = 20.0   # km/h ab dem Wind einen Einfluss hat
+WIND_CHILL_FACTOR = 0.05      # Korrektur pro km/h ueber Schwelle
+RAIN_BONUS_OVERRIDE = -2.0    # Wetterbonus wenn es gerade regnet

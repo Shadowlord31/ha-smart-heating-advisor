@@ -16,6 +16,12 @@ from .const import (
     CONF_INDOOR_TEMPS,
     CONF_WEATHER_ENTITY,
     CONF_WINDOW_SENSORS,
+    CONF_FEELS_LIKE_SENSOR,
+    CONF_RAIN_RATE_SENSOR,
+    CONF_WIND_SPEED_SENSOR,
+    WIND_CHILL_THRESHOLD,
+    WIND_CHILL_FACTOR,
+    RAIN_BONUS_OVERRIDE,
     DEFAULT_HEATING_THRESHOLD,
     DEFAULT_SUMMER_MODE_DAYS,
     DEFAULT_MIN_INDOOR_TEMP,
@@ -271,7 +277,24 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
     }
 
     def _weather_bonus(self, condition: str) -> float:
+        """Wetterbonus – echte Regenrate hat Vorrang vor Wetterzustand."""
+        rain_sensor = self._config.get(CONF_RAIN_RATE_SENSOR)
+        if rain_sensor:
+            rain_rate = self._get_float(rain_sensor)
+            if rain_rate is not None and rain_rate > 0.1:
+                return RAIN_BONUS_OVERRIDE
         return self.WEATHER_BONUS.get(condition, 0.0)
+
+    def _wind_correction(self) -> float:
+        """Windkorrektur: starker Wind kuehlt Gebaeude schneller aus."""
+        wind_sensor = self._config.get(CONF_WIND_SPEED_SENSOR)
+        if not wind_sensor:
+            return 0.0
+        wind_speed = self._get_float(wind_sensor)
+        if wind_speed is None or wind_speed <= WIND_CHILL_THRESHOLD:
+            return 0.0
+        correction = -(wind_speed - WIND_CHILL_THRESHOLD) * WIND_CHILL_FACTOR
+        return round(max(correction, -2.0), 2)
 
     # ------------------------------------------------------------------
     # Tagestrend
@@ -341,6 +364,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
             0.0
         )
 
+        wind_correction = self._wind_correction()
         calculated = (
             current
             + weather_bonus
@@ -348,6 +372,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
             + night_penalty
             + tomorrow_penalty
             + building_correction
+            + wind_correction
         )
 
         limited = min(calculated, current + 4.0)
@@ -362,6 +387,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
                 "nacht_malus": night_penalty,
                 "morgen_malus": tomorrow_penalty,
                 "gebaeude_korrektur": building_correction,
+                "wind_korrektur": wind_correction,
             }
         }
 
@@ -500,6 +526,9 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
                 "updated_at": dt_util.now().isoformat(),
                 "active_indoor_sensors": self._resolve_indoor_sensors(),
                 "active_window_sensors": self._resolve_window_sensors(),
+                "rain_rate": self._get_float(self._config.get(CONF_RAIN_RATE_SENSOR, "")),
+                "wind_speed": self._get_float(self._config.get(CONF_WIND_SPEED_SENSOR, "")),
+                "feels_like": self._get_float(self._config.get(CONF_FEELS_LIKE_SENSOR, "")),
             }
 
         except UpdateFailed:

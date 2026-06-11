@@ -3,12 +3,20 @@
     "step": {
       "user": {
         "title": "Smart Heating Advisor einrichten",
-        "description": "Wähle die Sensoren aus die für die Heizungsempfehlung berücksichtigt werden sollen. Labels können nach der Einrichtung direkt im Gerät konfiguriert werden.",
+        "description": "Wähle die Sensoren aus die für die Heizungsempfehlung berücksichtigt werden sollen.",
         "data": {
           "outdoor_temp_sensor": "Außentemperatursensor",
           "indoor_temp_sensors": "Innentemperatursensoren (mehrere möglich)",
           "window_sensors": "Fensterkontakte (optional)",
-          "weather_entity": "Wetter-Entity (für Forecast)"
+          "weather_entity": "Wetter-Entity (für Forecast)",
+          "feels_like_sensor": "Gefühlte Außentemperatur (optional, z.B. Wetterstation)",
+          "rain_rate_sensor": "Regenrate-Sensor (optional, mm/h)",
+          "wind_speed_sensor": "Windgeschwindigkeits-Sensor (optional, km/h)"
+        },
+        "data_description": {
+          "feels_like_sensor": "Ersetzt die Außentemperatur als Berechnungsbasis – ideal für Wetterstationen mit feelslike-Sensor.",
+          "rain_rate_sensor": "Bei aktivem Regen wird der Wetterbonus auf -2°C gesetzt, unabhängig vom Wetterzustand.",
+          "wind_speed_sensor": "Ab 20 km/h wird eine zusätzliche Abwärtskorrektur berechnet (max. -2°C)."
         }
       }
     },
@@ -24,7 +32,15 @@
           "outdoor_temp_sensor": "Außentemperatursensor",
           "indoor_temp_sensors": "Innentemperatursensoren (mehrere möglich)",
           "window_sensors": "Fensterkontakte (optional)",
-          "weather_entity": "Wetter-Entity (für Forecast)"
+          "weather_entity": "Wetter-Entity (für Forecast)",
+          "feels_like_sensor": "Gefühlte Außentemperatur (optional)",
+          "rain_rate_sensor": "Regenrate-Sensor (optional, mm/h)",
+          "wind_speed_sensor": "Windgeschwindigkeits-Sensor (optional, km/h)"
+        },
+        "data_description": {
+          "feels_like_sensor": "Ersetzt die Außentemperatur als Berechnungsbasis.",
+          "rain_rate_sensor": "Bei aktivem Regen wird der Wetterbonus auf -2°C gesetzt.",
+          "wind_speed_sensor": "Ab 20 km/h zusätzliche Abwärtskorrektur (max. -2°C)."
         }
       }
     }

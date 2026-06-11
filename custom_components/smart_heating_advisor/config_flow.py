@@ -12,6 +12,9 @@ from .const import (
     CONF_INDOOR_TEMPS,
     CONF_WEATHER_ENTITY,
     CONF_WINDOW_SENSORS,
+    CONF_FEELS_LIKE_SENSOR,
+    CONF_RAIN_RATE_SENSOR,
+    CONF_WIND_SPEED_SENSOR,
 )
 
 
@@ -47,6 +50,24 @@ def _build_schema(defaults: dict) -> vol.Schema:
             default=defaults.get(CONF_WEATHER_ENTITY)
         ): selector.EntitySelector(
             selector.EntitySelectorConfig(domain="weather")
+        ),
+        vol.Optional(
+            CONF_FEELS_LIKE_SENSOR,
+            default=defaults.get(CONF_FEELS_LIKE_SENSOR, "")
+        ): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
+        ),
+        vol.Optional(
+            CONF_RAIN_RATE_SENSOR,
+            default=defaults.get(CONF_RAIN_RATE_SENSOR, "")
+        ): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain="sensor")
+        ),
+        vol.Optional(
+            CONF_WIND_SPEED_SENSOR,
+            default=defaults.get(CONF_WIND_SPEED_SENSOR, "")
+        ): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain="sensor")
         ),
     })
 
