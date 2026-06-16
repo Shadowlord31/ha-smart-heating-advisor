@@ -395,13 +395,21 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
     # Sommermodus
     # ------------------------------------------------------------------
 
-    def _calc_summer_mode(self, forecast: list, avg_indoor: float | None, indoor_trend: float | None) -> bool:
+    HYSTERESIS_COLD_DAYS = 2  # Anzahl Tage in Folge "kalt" bevor Sommermodus wirklich abschaltet
+
+    def _summer_state_store(self) -> dict:
+        """Persistenter Zustand fuer die Sommermodus-Hysterese."""
+        return self.hass.data.setdefault(DOMAIN, {}).setdefault(
+            f"{self._entry_id}_summer_state",
+            {"cold_days": 0, "was_active": False, "last_eval_date": None}
+        )
+
+    def _calc_summer_mode_raw(self, forecast: list, avg_indoor: float | None, indoor_trend: float | None) -> bool:
         """
-        Sommermodus aktiv wenn:
+        Rohbewertung ohne Hysterese:
         - Tagesmaximum der naechsten N Tage ueber Sommer-Tagesmax-Schwelle
         - Innentemperatur aktuell ueber Sommer-Mindest-Innentemperatur
         - Innentemperatur-Trend nicht stark fallend
-        Nachttemperatur fliesst nicht mehr ein.
         """
         day_max_threshold = self._num(NUMBER_SUMMER_DAY_MAX, DEFAULT_SUMMER_DAY_MAX)
         days_needed = int(self._num(NUMBER_SUMMER_MODE_DAYS, DEFAULT_SUMMER_MODE_DAYS))
@@ -410,19 +418,52 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         if len(forecast) < days_needed:
             return False
 
-        # Tage pruefen: nur Tagesmaximum
         for day in forecast[:days_needed]:
             day_max = float(day.get("temperature", 0))
             if day_max < day_max_threshold:
                 return False
 
-        # Innentemperatur muss noch warm genug sein
         if avg_indoor is not None and avg_indoor < summer_min_indoor:
             return False
 
-        # Wenn Wohnung stark auskuehlt kein Sommermodus
         if indoor_trend is not None and indoor_trend < -0.4:
             return False
+
+        return True
+
+    def _calc_summer_mode(self, forecast: list, avg_indoor: float | None, indoor_trend: float | None) -> bool:
+        """
+        Sommermodus mit Hysterese: bleibt aktiv bis HYSTERESIS_COLD_DAYS Tage
+        in Folge die Rohbewertung negativ war. Verhindert Flackern bei
+        einzelnen kuehleren Tagen.
+        """
+        raw_active = self._calc_summer_mode_raw(forecast, avg_indoor, indoor_trend)
+        state = self._summer_state_store()
+        today = dt_util.now().date().isoformat()
+
+        if raw_active:
+            state["cold_days"] = 0
+            state["was_active"] = True
+            state["last_eval_date"] = today
+            return True
+
+        # Rohbewertung negativ - Hysterese pruefen
+        if state["was_active"]:
+            # Cold-Day-Counter nur einmal pro Kalendertag erhoehen
+            if state.get("last_eval_date") != today:
+                state["cold_days"] += 1
+                state["last_eval_date"] = today
+
+            if state["cold_days"] < self.HYSTERESIS_COLD_DAYS:
+                # Noch nicht genug kalte Tage in Folge - Sommermodus bleibt aktiv
+                return True
+            else:
+                # Schwelle erreicht - jetzt wirklich abschalten
+                state["was_active"] = False
+                state["cold_days"] = 0
+                return False
+
+        return False
 
         return True
 

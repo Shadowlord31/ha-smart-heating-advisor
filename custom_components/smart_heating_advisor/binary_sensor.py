@@ -80,6 +80,15 @@ class SummerModeBinarySensor(_BaseBinarySensor):
     def icon(self):
         return "mdi:weather-sunny" if self.is_on else "mdi:weather-partly-cloudy"
 
+    @property
+    def extra_state_attributes(self):
+        from .const import DOMAIN
+        state = self.coordinator.hass.data.get(DOMAIN, {}).get(f"{self._entry.entry_id}_summer_state", {})
+        return {
+            "kalte_tage_in_folge": state.get("cold_days", 0),
+            "hysterese_schwelle": 2,
+        }
+
 
 class WindowOpenBinarySensor(_BaseBinarySensor):
     def __init__(self, coordinator, entry):
