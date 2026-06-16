@@ -436,14 +436,10 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         avg_indoor: float | None,
         min_indoor: float | None,
         summer_mode: bool,
-        any_window_open: bool,
     ) -> dict:
         threshold = self._num(NUMBER_HEATING_THRESHOLD, DEFAULT_HEATING_THRESHOLD)
 
         min_indoor_threshold = self._num(NUMBER_MIN_INDOOR_TEMP, DEFAULT_MIN_INDOOR_TEMP)
-
-        if any_window_open:
-            return {"recommend": False, "reason": "Fenster geoeffnet", "target_temp": min_indoor_threshold, "confidence": 95}
 
         if summer_mode:
             return {"recommend": False, "reason": "Sommermodus aktiv", "target_temp": min_indoor_threshold, "confidence": 90}
@@ -496,7 +492,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
 
             summer_mode = self._calc_summer_mode(forecast, avg_indoor, building["trend_per_hour"])
             recommendation = self._calc_heating_recommendation(
-                heating_relevant_temp, avg_indoor, min_indoor, summer_mode, any_window_open
+                heating_relevant_temp, avg_indoor, min_indoor, summer_mode
             )
 
             today_forecast = forecast[0] if forecast else {}
