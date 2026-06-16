@@ -404,10 +404,74 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
             {"cold_days": 0, "was_active": False, "last_eval_date": None}
         )
 
+    SNAPSHOT_HOUR = 23
+    SNAPSHOT_MINUTE = 30
+
+    def _daymax_snapshot_store(self) -> dict:
+        """
+        Persistenter Speicher fuer den fixierten Tagesmax-Wert von 'heute'.
+        Wird taeglich um 23:30 aus forecast[1] (morgen) neu befuellt,
+        damit der Wert fuer den kommenden Tag den ganzen Tag stabil bleibt
+        und nicht durch die fortschreitende Tageszeit nach unten verzerrt wird.
+        """
+        return self.hass.data.setdefault(DOMAIN, {}).setdefault(
+            f"{self._entry_id}_daymax_snapshot",
+            {"date": None, "fixed_max": None}
+        )
+
+    def _update_daymax_snapshot(self, forecast: list) -> None:
+        """
+        Prueft ob es Zeit fuer einen neuen Snapshot ist (kurz vor Mitternacht)
+        und speichert dann forecast[1] (morgen) als fixen Wert fuer den
+        kommenden Tag.
+        """
+        store = self._daymax_snapshot_store()
+        now = dt_util.now()
+        today_str = now.date().isoformat()
+
+        is_snapshot_time = (
+            now.hour == self.SNAPSHOT_HOUR and now.minute >= self.SNAPSHOT_MINUTE
+        )
+
+        if is_snapshot_time and store.get("date") != today_str:
+            if len(forecast) > 1:
+                tomorrow_max = float(forecast[1].get("temperature", 0))
+                store["date"] = today_str
+                store["fixed_max"] = tomorrow_max
+                _LOGGER.debug(
+                    "Tagesmax-Snapshot erstellt fuer kommenden Tag: %s°C", tomorrow_max
+                )
+
+    def _get_today_max_for_summer(self, forecast: list) -> float | None:
+        """
+        Gibt das stabile Tagesmaximum fuer 'heute' zurueck.
+        Nutzt den gestrigen Snapshot wenn vorhanden (stabil, nicht
+        tageszeit-verzerrt), sonst Fallback auf forecast[0].
+        """
+        store = self._daymax_snapshot_store()
+        now = dt_util.now()
+        today_str = now.date().isoformat()
+
+        # Snapshot ist gueltig wenn er gestern fuer heute erstellt wurde
+        if store.get("fixed_max") is not None:
+            snapshot_date = store.get("date")
+            # Snapshot wurde am Vortag fuer "heute" erstellt
+            if snapshot_date and snapshot_date < today_str:
+                return store["fixed_max"]
+            # Snapshot ist von heute selbst (z.B. nach 23:30) - gehoert zu morgen, nicht nutzen
+            elif snapshot_date == today_str:
+                pass
+
+        # Fallback: kein gueltiger Snapshot vorhanden, rohen Forecast-Wert nutzen
+        if forecast:
+            return float(forecast[0].get("temperature", 0))
+        return None
+
     def _calc_summer_mode_raw(self, forecast: list, avg_indoor: float | None, indoor_trend: float | None) -> bool:
         """
         Rohbewertung ohne Hysterese:
         - Tagesmaximum der naechsten N Tage ueber Sommer-Tagesmax-Schwelle
+          (heutiger Wert kommt aus stabilem Snapshot statt Live-Forecast)
         - Innentemperatur aktuell ueber Sommer-Mindest-Innentemperatur
         - Innentemperatur-Trend nicht stark fallend
         """
@@ -418,7 +482,15 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
         if len(forecast) < days_needed:
             return False
 
-        for day in forecast[:days_needed]:
+        self._update_daymax_snapshot(forecast)
+
+        # Tag 0 (heute): stabiler Snapshot-Wert statt Live-Forecast
+        today_max = self._get_today_max_for_summer(forecast)
+        if today_max is not None and today_max < day_max_threshold:
+            return False
+
+        # Folgetage: normaler Forecast-Wert (nicht von Tageszeit-Bias betroffen)
+        for day in forecast[1:days_needed]:
             day_max = float(day.get("temperature", 0))
             if day_max < day_max_threshold:
                 return False

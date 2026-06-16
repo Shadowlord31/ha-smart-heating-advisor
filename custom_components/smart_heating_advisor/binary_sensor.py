@@ -84,9 +84,12 @@ class SummerModeBinarySensor(_BaseBinarySensor):
     def extra_state_attributes(self):
         from .const import DOMAIN
         state = self.coordinator.hass.data.get(DOMAIN, {}).get(f"{self._entry.entry_id}_summer_state", {})
+        snapshot = self.coordinator.hass.data.get(DOMAIN, {}).get(f"{self._entry.entry_id}_daymax_snapshot", {})
         return {
             "kalte_tage_in_folge": state.get("cold_days", 0),
             "hysterese_schwelle": 2,
+            "tagesmax_snapshot_wert": snapshot.get("fixed_max"),
+            "tagesmax_snapshot_datum": snapshot.get("date"),
         }
 
 
