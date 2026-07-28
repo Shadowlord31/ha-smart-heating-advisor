@@ -18,6 +18,22 @@ from .const import (
     CONF_MAINTENANCE_BOOLEANS,
 )
 
+_OPTIONAL_ENTITY_KEYS = (
+    CONF_FEELS_LIKE_SENSOR,
+    CONF_RAIN_RATE_SENSOR,
+    CONF_WIND_SPEED_SENSOR,
+)
+
+
+def _normalize_input(user_input: dict) -> dict:
+    """Leere Strings bei optionalen Entity-Feldern zu None normalisieren,
+    damit sie nicht als (ungueltige) Entity-ID gespeichert werden."""
+    cleaned = dict(user_input)
+    for key in _OPTIONAL_ENTITY_KEYS:
+        if cleaned.get(key) == "":
+            cleaned[key] = None
+    return cleaned
+
 
 def _build_schema(defaults: dict) -> vol.Schema:
     return vol.Schema({
@@ -54,19 +70,19 @@ def _build_schema(defaults: dict) -> vol.Schema:
         ),
         vol.Optional(
             CONF_FEELS_LIKE_SENSOR,
-            default=defaults.get(CONF_FEELS_LIKE_SENSOR)
+            default=defaults.get(CONF_FEELS_LIKE_SENSOR) or None
         ): selector.EntitySelector(
             selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
         ),
         vol.Optional(
             CONF_RAIN_RATE_SENSOR,
-            default=defaults.get(CONF_RAIN_RATE_SENSOR)
+            default=defaults.get(CONF_RAIN_RATE_SENSOR) or None
         ): selector.EntitySelector(
             selector.EntitySelectorConfig(domain="sensor")
         ),
         vol.Optional(
             CONF_WIND_SPEED_SENSOR,
-            default=defaults.get(CONF_WIND_SPEED_SENSOR)
+            default=defaults.get(CONF_WIND_SPEED_SENSOR) or None
         ): selector.EntitySelector(
             selector.EntitySelectorConfig(domain="sensor")
         ),
@@ -95,7 +111,7 @@ class SmartHeatingAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 return self.async_create_entry(
                     title="Smart Heating Advisor",
-                    data=user_input,
+                    data=_normalize_input(user_input),
                 )
 
         return self.async_show_form(
@@ -116,7 +132,7 @@ class SmartHeatingAdvisorOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            return self.async_create_entry(title="", data=_normalize_input(user_input))
 
         current = {**self._config_entry.data, **self._config_entry.options}
         return self.async_show_form(
