@@ -88,7 +88,9 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
     # Hilfsmethoden
     # ------------------------------------------------------------------
 
-    def _get_float(self, entity_id: str) -> float | None:
+    def _get_float(self, entity_id: str | None) -> float | None:
+        if not entity_id:
+            return None
         state = self.hass.states.get(entity_id)
         if state is None or state.state in ("unavailable", "unknown"):
             return None
@@ -635,9 +637,9 @@ class SmartHeatingCoordinator(DataUpdateCoordinator):
                 "updated_at": dt_util.now().isoformat(),
                 "active_indoor_sensors": self._resolve_indoor_sensors(),
                 "active_window_sensors": self._resolve_window_sensors(),
-                "rain_rate": self._get_float(self._config.get(CONF_RAIN_RATE_SENSOR, "")),
-                "wind_speed": self._get_float(self._config.get(CONF_WIND_SPEED_SENSOR, "")),
-                "feels_like": self._get_float(self._config.get(CONF_FEELS_LIKE_SENSOR, "")),
+                "rain_rate": self._get_float(self._config.get(CONF_RAIN_RATE_SENSOR)),
+                "wind_speed": self._get_float(self._config.get(CONF_WIND_SPEED_SENSOR)),
+                "feels_like": self._get_float(self._config.get(CONF_FEELS_LIKE_SENSOR)),
             }
 
         except UpdateFailed:
