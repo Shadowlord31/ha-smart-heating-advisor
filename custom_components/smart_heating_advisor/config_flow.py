@@ -54,19 +54,19 @@ def _build_schema(defaults: dict) -> vol.Schema:
         ),
         vol.Optional(
             CONF_FEELS_LIKE_SENSOR,
-            default=defaults.get(CONF_FEELS_LIKE_SENSOR, "")
+            default=defaults.get(CONF_FEELS_LIKE_SENSOR)
         ): selector.EntitySelector(
             selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
         ),
         vol.Optional(
             CONF_RAIN_RATE_SENSOR,
-            default=defaults.get(CONF_RAIN_RATE_SENSOR, "")
+            default=defaults.get(CONF_RAIN_RATE_SENSOR)
         ): selector.EntitySelector(
             selector.EntitySelectorConfig(domain="sensor")
         ),
         vol.Optional(
             CONF_WIND_SPEED_SENSOR,
-            default=defaults.get(CONF_WIND_SPEED_SENSOR, "")
+            default=defaults.get(CONF_WIND_SPEED_SENSOR)
         ): selector.EntitySelector(
             selector.EntitySelectorConfig(domain="sensor")
         ),
