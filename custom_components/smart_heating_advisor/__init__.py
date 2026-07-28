@@ -7,7 +7,7 @@ from homeassistant.core import HomeAssistant
 from .const import DOMAIN
 from .coordinator import SmartHeatingCoordinator
 
-PLATFORMS = ["sensor", "binary_sensor", "number"]
+PLATFORMS = ["sensor", "binary_sensor", "number", "switch"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -35,4 +35,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN].pop(f"{entry.entry_id}_numbers", None)
         hass.data[DOMAIN].pop(f"{entry.entry_id}_summer_state", None)
         hass.data[DOMAIN].pop(f"{entry.entry_id}_daymax_snapshot", None)
+        hass.data[DOMAIN].pop(f"{entry.entry_id}_switches", None)
     return unload_ok

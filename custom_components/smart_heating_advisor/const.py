@@ -33,3 +33,9 @@ CONF_WIND_SPEED_SENSOR = "wind_speed_sensor"
 WIND_CHILL_THRESHOLD = 20.0   # km/h ab dem Wind einen Einfluss hat
 WIND_CHILL_FACTOR = 0.05      # Korrektur pro km/h ueber Schwelle
 RAIN_BONUS_OVERRIDE = -2.0    # Wetterbonus wenn es gerade regnet
+
+# Wartungs-/Schornsteinfeger-Modus
+CONF_MAINTENANCE_BOOLEANS = "maintenance_booleans"
+
+# Switch-Store-Schluessel (wird in hass.data gespeichert)
+SWITCH_CHIMNEY_SWEEP = "switch_chimney_sweep"

@@ -11,12 +11,14 @@
           "weather_entity": "Wetter-Entity (für Forecast)",
           "feels_like_sensor": "Gefühlte Außentemperatur (optional, z.B. Wetterstation)",
           "rain_rate_sensor": "Regenrate-Sensor (optional, mm/h)",
-          "wind_speed_sensor": "Windgeschwindigkeits-Sensor (optional, km/h)"
+          "wind_speed_sensor": "Windgeschwindigkeits-Sensor (optional, km/h)",
+          "maintenance_booleans": "Wartungs-Booleans pro Raum (optional, mehrere möglich)"
         },
         "data_description": {
           "feels_like_sensor": "Ersetzt die Außentemperatur als Berechnungsbasis – ideal für Wetterstationen mit feelslike-Sensor.",
           "rain_rate_sensor": "Bei aktivem Regen wird der Wetterbonus auf -2°C gesetzt, unabhängig vom Wetterzustand.",
-          "wind_speed_sensor": "Ab 20 km/h wird eine zusätzliche Abwärtskorrektur berechnet (max. -2°C)."
+          "wind_speed_sensor": "Ab 20 km/h wird eine zusätzliche Abwärtskorrektur berechnet (max. -2°C).",
+          "maintenance_booleans": "Vorhandene input_boolean-Helper (z.B. input_boolean.heizung_wz_manuell), für die je ein Wartungsschalter in dieser Integration erzeugt wird."
         }
       }
     },
@@ -35,12 +37,14 @@
           "weather_entity": "Wetter-Entity (für Forecast)",
           "feels_like_sensor": "Gefühlte Außentemperatur (optional)",
           "rain_rate_sensor": "Regenrate-Sensor (optional, mm/h)",
-          "wind_speed_sensor": "Windgeschwindigkeits-Sensor (optional, km/h)"
+          "wind_speed_sensor": "Windgeschwindigkeits-Sensor (optional, km/h)",
+          "maintenance_booleans": "Wartungs-Booleans pro Raum (optional, mehrere möglich)"
         },
         "data_description": {
           "feels_like_sensor": "Ersetzt die Außentemperatur als Berechnungsbasis.",
           "rain_rate_sensor": "Bei aktivem Regen wird der Wetterbonus auf -2°C gesetzt.",
-          "wind_speed_sensor": "Ab 20 km/h zusätzliche Abwärtskorrektur (max. -2°C)."
+          "wind_speed_sensor": "Ab 20 km/h zusätzliche Abwärtskorrektur (max. -2°C).",
+          "maintenance_booleans": "Vorhandene input_boolean-Helper (z.B. input_boolean.heizung_wz_manuell), für die je ein Wartungsschalter in dieser Integration erzeugt wird."
         }
       }
     }

@@ -15,6 +15,7 @@ from .const import (
     CONF_FEELS_LIKE_SENSOR,
     CONF_RAIN_RATE_SENSOR,
     CONF_WIND_SPEED_SENSOR,
+    CONF_MAINTENANCE_BOOLEANS,
 )
 
 
@@ -68,6 +69,15 @@ def _build_schema(defaults: dict) -> vol.Schema:
             default=defaults.get(CONF_WIND_SPEED_SENSOR, "")
         ): selector.EntitySelector(
             selector.EntitySelectorConfig(domain="sensor")
+        ),
+        vol.Optional(
+            CONF_MAINTENANCE_BOOLEANS,
+            default=defaults.get(CONF_MAINTENANCE_BOOLEANS, [])
+        ): selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                domain="input_boolean",
+                multiple=True,
+            )
         ),
     })
 
