@@ -71,21 +71,21 @@ def _build_schema(defaults: dict) -> vol.Schema:
         vol.Optional(
             CONF_FEELS_LIKE_SENSOR,
             default=defaults.get(CONF_FEELS_LIKE_SENSOR) or None
-        ): selector.EntitySelector(
+        ): vol.Any(None, selector.EntitySelector(
             selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
-        ),
+        )),
         vol.Optional(
             CONF_RAIN_RATE_SENSOR,
             default=defaults.get(CONF_RAIN_RATE_SENSOR) or None
-        ): selector.EntitySelector(
+        ): vol.Any(None, selector.EntitySelector(
             selector.EntitySelectorConfig(domain="sensor")
-        ),
+        )),
         vol.Optional(
             CONF_WIND_SPEED_SENSOR,
             default=defaults.get(CONF_WIND_SPEED_SENSOR) or None
-        ): selector.EntitySelector(
+        ): vol.Any(None, selector.EntitySelector(
             selector.EntitySelectorConfig(domain="sensor")
-        ),
+        )),
         vol.Optional(
             CONF_MAINTENANCE_BOOLEANS,
             default=defaults.get(CONF_MAINTENANCE_BOOLEANS, [])
